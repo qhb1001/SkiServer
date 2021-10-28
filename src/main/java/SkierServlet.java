@@ -25,8 +25,8 @@ public class SkierServlet extends HttpServlet {
     public void init() {
         try {
             factory = new ConnectionFactory();
-            factory.setHost("localhost");
-//            factory.setUri("amqp://bo:passwordforrabbitmq@ec2-54-209-69-199.compute-1.amazonaws.com:5672/vhost");
+//            factory.setHost("localhost");
+            factory.setUri("amqp://bo:passwordforrabbitmq@ec2-54-209-69-199.compute-1.amazonaws.com:5672/vhost");
             connection = factory.newConnection();
 
             channelPool = new GenericObjectPool<Channel>(new RabbitMQChannelPool(factory, connection));
