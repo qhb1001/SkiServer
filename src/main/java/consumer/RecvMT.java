@@ -10,6 +10,8 @@ import org.apache.commons.cli.*;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -45,7 +47,7 @@ public class RecvMT {
         ConnectionFactory factory = new ConnectionFactory();
         factory.setHost("localhost");
         final Connection connection = factory.newConnection();
-
+        AtomicInteger sum = new AtomicInteger(0);
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
@@ -55,7 +57,6 @@ public class RecvMT {
                     // max one message per receiver
                     channel.basicQos(1);
                     System.out.println(" [*] Thread waiting for messages. To exit press CTRL+C");
-
                     DeliverCallback deliverCallback = (consumerTag, delivery) -> {
                         String message = new String(delivery.getBody(), "UTF-8");
                         channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
@@ -63,11 +64,15 @@ public class RecvMT {
                         Gson gson = new Gson();
                         LiftRideMessage liftRideMessage = gson.fromJson(message, LiftRideMessage.class);
                         result.addTime(liftRideMessage.getSkierID(), liftRideMessage.getTime());
+                        sum.updateAndGet(v -> v + 1);
+                        System.out.println("Sum = " + sum);
+                        System.out.println("result hashtable size: " + result.size());
                     };
                     // process messages
                     channel.basicConsume(QUEUE_NAME, false, deliverCallback, consumerTag -> { });
                 } catch (IOException ex) {
-                    Logger.getLogger(RecvMT.class.getName()).log(Level.SEVERE, null, ex);
+                    ex.printStackTrace();
+//                    Logger.getLogger(RecvMT.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
         };

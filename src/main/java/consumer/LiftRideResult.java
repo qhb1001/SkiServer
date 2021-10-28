@@ -12,7 +12,12 @@ public class LiftRideResult {
     }
 
     public synchronized void addTime(Integer skierID, Integer time) {
-        results.put(skierID, results.get(skierID) + time);
+        if (results.containsKey(skierID)) {
+            results.put(skierID, results.get(skierID) + time);
+        } else {
+            results.put(skierID, time);
+        }
+
     }
 
     public Integer getTotalTime(Integer skierID) {
@@ -21,5 +26,9 @@ public class LiftRideResult {
 
     public synchronized List<Integer> getSkierIDs() {
         return Collections.list(results.keys());
+    }
+
+    public synchronized int size() {
+        return results.size();
     }
 }

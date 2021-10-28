@@ -13,6 +13,11 @@ public class RabbitMQChannelPool extends BasePooledObjectFactory<Channel> {
     private ConnectionFactory connectionFactory;
     private Connection connection;
 
+    public RabbitMQChannelPool(ConnectionFactory connectionFactory, Connection connection) {
+        this.connectionFactory = connectionFactory;
+        this.connection = connection;
+    }
+
     @Override
     public Channel create() throws Exception {
         return connection.createChannel();

@@ -2,6 +2,9 @@ import com.google.gson.Gson;
 import com.rabbitmq.client.*;
 import model.LiftRideMessage;
 import model.LiftRidePayload;
+import org.apache.commons.pool2.ObjectPool;
+import org.apache.commons.pool2.impl.GenericObjectPool;
+import util.RabbitMQChannelPool;
 
 import javax.servlet.*;
 import javax.servlet.http.*;
@@ -16,14 +19,17 @@ public class SkierServlet extends HttpServlet {
     private ConnectionFactory factory;
     private String newLiftRideQueueName = "newLiftRideQueue";
     private Connection connection;
+    private ObjectPool<Channel> channelPool;
 
     @Override
     public void init() {
         try {
             factory = new ConnectionFactory();
-//            factory.setHost("localhost");
-            factory.setUri("amqp://bo:passwordforrabbitmq@ec2-54-209-69-199.compute-1.amazonaws.com:5672/vhost");
+            factory.setHost("localhost");
+//            factory.setUri("amqp://bo:passwordforrabbitmq@ec2-54-209-69-199.compute-1.amazonaws.com:5672/vhost");
             connection = factory.newConnection();
+
+            channelPool = new GenericObjectPool<Channel>(new RabbitMQChannelPool(factory, connection));
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -94,8 +100,11 @@ public class SkierServlet extends HttpServlet {
         } else {
             // do any sophisticated processing with urlParts which contains all the url params
             if (urlParts.length == 8) {
-                try (Channel channel = connection.createChannel()) {
-                    channel.queueDeclare(newLiftRideQueueName, false, false, false, null);
+//                try (Channel channel = connection.createChannel()) {
+                Channel channel = null;
+                try {
+                    channel = channelPool.borrowObject();
+                    channel.queueDeclare(newLiftRideQueueName, true, false, false, null);
                     String message = formatLiftRideJson(urlPath, req.getReader().lines().collect(Collectors.joining()));
 
                     channel.basicPublish("", newLiftRideQueueName,
@@ -106,23 +115,33 @@ public class SkierServlet extends HttpServlet {
                     res.getWriter().write("{\n" +
                             "  \"message\": \"pushed a message to the rabbitmq\"\n" +
                             "}");
-                    return;
                 } catch (TimeoutException e) {
                     e.printStackTrace();
                     res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                     res.sendError(HttpServletResponse.SC_NOT_FOUND, "Cannot create a channel to rabbitmq");
-                    return;
                 } catch (IOException e) {
                     e.printStackTrace();
                     res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                     res.sendError(HttpServletResponse.SC_NOT_FOUND, "Cannot publish message to the queue");
-                    return;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                    res.sendError(HttpServletResponse.SC_NOT_FOUND, "Unable to borrow a channel from pool");
+                } finally {
+                    if (channel != null) {
+                        try {
+                            channelPool.returnObject(channel);
+                            System.out.println("channel returned to the pool.");
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            throw new ServletException("Unable to return a borrowed channel to the pool");
+                        }
+                    }
                 }
 
             } else {
                 res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 res.sendError(HttpServletResponse.SC_NOT_FOUND, "Information Not Found");
-                return;
             }
         }
     }
@@ -168,10 +187,10 @@ public class SkierServlet extends HttpServlet {
     @Override
     public void destroy() {
         super.destroy();
-//        try {
-//            connection.close();
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
+        try {
+            connection.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
