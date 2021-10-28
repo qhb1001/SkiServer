@@ -1,10 +1,34 @@
+import com.google.gson.Gson;
+import com.rabbitmq.client.*;
+import model.LiftRideMessage;
+import model.LiftRidePayload;
+
 import javax.servlet.*;
 import javax.servlet.http.*;
 import javax.servlet.annotation.*;
 import java.io.IOException;
+import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 @WebServlet(name = "SkierServlet", value = "/SkierServlet")
 public class SkierServlet extends HttpServlet {
+
+    private ConnectionFactory factory;
+    private String newLiftRideQueueName = "newLiftRideQueue";
+    private Connection connection;
+
+    @Override
+    public void init() {
+        try {
+            factory = new ConnectionFactory();
+//            factory.setHost("localhost");
+            factory.setUri("amqp://bo:passwordforrabbitmq@ec2-54-209-69-199.compute-1.amazonaws.com:5672/vhost");
+            connection = factory.newConnection();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
 //        res.setContentType("text/plain");
@@ -70,11 +94,31 @@ public class SkierServlet extends HttpServlet {
         } else {
             // do any sophisticated processing with urlParts which contains all the url params
             if (urlParts.length == 8) {
-                res.setStatus(HttpServletResponse.SC_CREATED);
-                res.getWriter().write("{\n" +
-                        "  \"message\": \"string\"\n" +
-                        "}");
-                return;
+                try (Channel channel = connection.createChannel()) {
+                    channel.queueDeclare(newLiftRideQueueName, false, false, false, null);
+                    String message = formatLiftRideJson(urlPath, req.getReader().lines().collect(Collectors.joining()));
+
+                    channel.basicPublish("", newLiftRideQueueName,
+                            MessageProperties.PERSISTENT_TEXT_PLAIN,
+                            message.getBytes("UTF-8"));
+
+                    res.setStatus(HttpServletResponse.SC_CREATED);
+                    res.getWriter().write("{\n" +
+                            "  \"message\": \"pushed a message to the rabbitmq\"\n" +
+                            "}");
+                    return;
+                } catch (TimeoutException e) {
+                    e.printStackTrace();
+                    res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                    res.sendError(HttpServletResponse.SC_NOT_FOUND, "Cannot create a channel to rabbitmq");
+                    return;
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                    res.sendError(HttpServletResponse.SC_NOT_FOUND, "Cannot publish message to the queue");
+                    return;
+                }
+
             } else {
                 res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 res.sendError(HttpServletResponse.SC_NOT_FOUND, "Information Not Found");
@@ -107,5 +151,27 @@ public class SkierServlet extends HttpServlet {
             return true;
         }
         return false;
+    }
+
+    private String formatLiftRideJson(String urlPath, String payload) {
+        System.out.println(urlPath);
+        System.out.println(payload);
+        String[] urlParts = urlPath.split("/");
+        Gson gson = new Gson();
+        LiftRidePayload liftRidePayload = gson.fromJson(payload, LiftRidePayload.class);
+        LiftRideMessage liftRideMessage = new LiftRideMessage(Integer.parseInt(urlParts[1]), urlParts[3], urlParts[5],
+                Integer.parseInt(urlParts[7]), liftRidePayload.getTime(), liftRidePayload.getLiftID());
+
+        return gson.toJson(liftRideMessage);
+    }
+
+    @Override
+    public void destroy() {
+        super.destroy();
+//        try {
+//            connection.close();
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
     }
 }
