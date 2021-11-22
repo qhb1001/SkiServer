@@ -25,8 +25,8 @@ public class SkierServlet extends HttpServlet {
     public void init() {
         try {
             factory = new ConnectionFactory();
-//            factory.setHost("localhost");
-            factory.setUri("amqp://bo:passwordforrabbitmq@3.211.69.198:5672/vhost");
+            factory.setHost("localhost");
+//            factory.setUri("amqp://bo:passwordforrabbitmq@3.211.69.198:5672/vhost");
             connection = factory.newConnection();
 
             channelPool = new GenericObjectPool<Channel>(new RabbitMQChannelPool(factory, connection));
@@ -107,7 +107,7 @@ public class SkierServlet extends HttpServlet {
                     channel.queueDeclare(newLiftRideQueueName, true, false, false, null);
                     String message = formatLiftRideJson(urlPath, req.getReader().lines().collect(Collectors.joining()));
 
-                    channel.basicPublish("", newLiftRideQueueName,
+                    channel.basicPublish("liftRideExchange", newLiftRideQueueName,
                             MessageProperties.PERSISTENT_TEXT_PLAIN,
                             message.getBytes("UTF-8"));
 

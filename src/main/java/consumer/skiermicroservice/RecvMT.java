@@ -1,10 +1,12 @@
-package consumer;
+package consumer.skiermicroservice;
 
 import com.google.gson.Gson;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DeliverCallback;
+import consumer.skiermicroservice.dao.LiftRideDao;
+import consumer.skiermicroservice.model.LiftRide;
 import model.LiftRideMessage;
 import org.apache.commons.cli.*;
 
@@ -24,16 +26,45 @@ public class RecvMT {
         t.setRequired(true);
         options.addOption(t);
 
+        Option h = new Option("h", "dbHostName", true, "mysql host name");
+        h.setRequired(true);
+        options.addOption(h);
+
+        Option p = new Option("p", "dbPort", true, "mysql port");
+        p.setRequired(true);
+        options.addOption(p);
+
+        Option s = new Option("s", "dbSchema", true, "mysql schema");
+        s.setRequired(true);
+        options.addOption(s);
+
+        Option u = new Option("u", "dbUsername", true, "mysql username");
+        u.setRequired(true);
+        options.addOption(u);
+
+        Option w = new Option("w", "dbPassword", true, "mysql password");
+        w.setRequired(true);
+        options.addOption(w);
+
         CommandLineParser parser = new DefaultParser();
         HelpFormatter formatter = new HelpFormatter();
         CommandLine cmd = null;
 
         int numThreads = 128;
-        LiftRideResult result = new LiftRideResult();
+        String HOST_NAME = "127.0.0.1";
+        String PORT = "3306";
+        String DATABASE = "SkierMicroService";
+        String USERNAME = "username";
+        String PASSWORD = "password";
 
         try {
             cmd = parser.parse(options, argv);
             numThreads = Integer.parseInt(cmd.getOptionValue("numThreads"));
+            HOST_NAME = cmd.getOptionValue("dbHostName");
+            PORT = cmd.getOptionValue("dbPort");
+            DATABASE = cmd.getOptionValue("dbSchema");
+            USERNAME = cmd.getOptionValue("dbUsername");
+            PASSWORD = cmd.getOptionValue("dbPassword");
         } catch (ParseException e) {
             System.out.println(e.getMessage());
             formatter.printHelp("utility-name", options);
@@ -41,26 +72,36 @@ public class RecvMT {
         }
 
         ConnectionFactory factory = new ConnectionFactory();
-//        factory.setHost("localhost");
-        factory.setUri("amqp://bo:passwordforrabbitmq@3.211.69.198:5672/vhost");
+        factory.setHost("localhost");
+//        factory.setUri("amqp://bo:passwordforrabbitmq@3.211.69.198:5672/vhost");
         final Connection connection = factory.newConnection();
+        String finalHOST_NAME = HOST_NAME;
+        String finalPORT = PORT;
+        String finalDATABASE = DATABASE;
+        String finalUSERNAME = USERNAME;
+        String finalPASSWORD = PASSWORD;
         Runnable runnable = new Runnable() {
+
             @Override
             public void run() {
                 try {
                     final Channel channel = connection.createChannel();
                     channel.queueDeclare(QUEUE_NAME, true, false, false, null);
+
+                    LiftRideDao liftRideDao = new LiftRideDao(finalHOST_NAME, finalPORT, finalDATABASE, finalUSERNAME, finalPASSWORD);
                     // max one message per receiver
                     channel.basicQos(1);
                     System.out.println(" [*] Thread waiting for messages. To exit press CTRL+C");
                     DeliverCallback deliverCallback = (consumerTag, delivery) -> {
                         String message = new String(delivery.getBody(), "UTF-8");
                         channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-                        System.out.println( "Callback thread ID = " + Thread.currentThread().getId() + " Received '" + message + "'");
+//                        System.out.println( "Callback thread ID = " + Thread.currentThread().getId() + " Received '" + message + "'");
                         Gson gson = new Gson();
                         LiftRideMessage liftRideMessage = gson.fromJson(message, LiftRideMessage.class);
-                        result.addTime(liftRideMessage.getSkierID(), liftRideMessage.getTime());
-                        System.out.println("result hashtable size: " + result.size());
+                        LiftRide newLiftRide = new LiftRide(liftRideMessage.getSkierID(), liftRideMessage.getLiftID(),
+                                liftRideMessage.getSeasonID(), liftRideMessage.getDayID(), 100);
+
+                        liftRideDao.createLiftRide(newLiftRide);
                     };
                     // process messages
                     channel.basicConsume(QUEUE_NAME, false, deliverCallback, consumerTag -> { });
