@@ -15,7 +15,8 @@ import java.util.ArrayList;
 
 public class RecvMT {
 
-    private final static String QUEUE_NAME = "newLiftRideQueue";
+//    private final static String QUEUE_NAME = "newLiftRideQueue";
+    public static final String liftRideExchange = "liftRideExchange";
 
     public static void main(String[] argv) throws Exception {
 
@@ -72,9 +73,14 @@ public class RecvMT {
         }
 
         ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost("localhost");
-//        factory.setUri("amqp://bo:passwordforrabbitmq@3.211.69.198:5672/vhost");
+//        factory.setHost("localhost");
+        factory.setUri("amqp://bo:passwordforrabbitmq@54.208.30.94:5672/vhost");
         final Connection connection = factory.newConnection();
+        final Channel mainChannel = connection.createChannel();
+        mainChannel.exchangeDeclare(liftRideExchange, "fanout");
+        String subQueueName = mainChannel.queueDeclare("skierMicroServiceSubscriptionQueue", false, false, true, null).getQueue();
+        mainChannel.queueBind(subQueueName, liftRideExchange, "");
+
         String finalHOST_NAME = HOST_NAME;
         String finalPORT = PORT;
         String finalDATABASE = DATABASE;
@@ -86,12 +92,12 @@ public class RecvMT {
             public void run() {
                 try {
                     final Channel channel = connection.createChannel();
-                    channel.queueDeclare(QUEUE_NAME, true, false, false, null);
-
-                    LiftRideDao liftRideDao = new LiftRideDao(finalHOST_NAME, finalPORT, finalDATABASE, finalUSERNAME, finalPASSWORD);
+//                    channel.queueDeclare(subQueueName, true, false, false, null);
                     // max one message per receiver
                     channel.basicQos(1);
                     System.out.println(" [*] Thread waiting for messages. To exit press CTRL+C");
+
+                    LiftRideDao liftRideDao = new LiftRideDao(finalHOST_NAME, finalPORT, finalDATABASE, finalUSERNAME, finalPASSWORD);
                     DeliverCallback deliverCallback = (consumerTag, delivery) -> {
                         String message = new String(delivery.getBody(), "UTF-8");
                         channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
@@ -104,7 +110,7 @@ public class RecvMT {
                         liftRideDao.createLiftRide(newLiftRide);
                     };
                     // process messages
-                    channel.basicConsume(QUEUE_NAME, false, deliverCallback, consumerTag -> { });
+                    channel.basicConsume(subQueueName, false, deliverCallback, consumerTag -> { });
                 } catch (IOException ex) {
                     ex.printStackTrace();
 //                    Logger.getLogger(RecvMT.class.getName()).log(Level.SEVERE, null, ex);

@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 public class SkierServlet extends HttpServlet {
 
     private ConnectionFactory factory;
-    private String newLiftRideQueueName = "newLiftRideQueue";
+    public static final String liftRideExchange = "liftRideExchange";
     private Connection connection;
     private ObjectPool<Channel> channelPool;
 
@@ -25,8 +25,8 @@ public class SkierServlet extends HttpServlet {
     public void init() {
         try {
             factory = new ConnectionFactory();
-            factory.setHost("localhost");
-//            factory.setUri("amqp://bo:passwordforrabbitmq@3.211.69.198:5672/vhost");
+//            factory.setHost("localhost");
+            factory.setUri("amqp://bo:passwordforrabbitmq@54.208.30.94:5672/vhost");
             connection = factory.newConnection();
 
             channelPool = new GenericObjectPool<Channel>(new RabbitMQChannelPool(factory, connection));
@@ -100,15 +100,14 @@ public class SkierServlet extends HttpServlet {
         } else {
             // do any sophisticated processing with urlParts which contains all the url params
             if (urlParts.length == 8) {
-//                try (Channel channel = connection.createChannel()) {
                 Channel channel = null;
                 try {
                     channel = channelPool.borrowObject();
-                    channel.queueDeclare(newLiftRideQueueName, true, false, false, null);
+                    channel.exchangeDeclare(liftRideExchange, "fanout");
                     String message = formatLiftRideJson(urlPath, req.getReader().lines().collect(Collectors.joining()));
 
-                    channel.basicPublish("liftRideExchange", newLiftRideQueueName,
-                            MessageProperties.PERSISTENT_TEXT_PLAIN,
+                    channel.basicPublish(liftRideExchange, "",
+                            null,
                             message.getBytes("UTF-8"));
 
                     res.setStatus(HttpServletResponse.SC_CREATED);
