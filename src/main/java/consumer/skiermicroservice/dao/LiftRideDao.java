@@ -29,8 +29,8 @@ public class LiftRideDao {
             preparedStatement = conn.prepareStatement(insertQueryStatement);
             preparedStatement.setInt(1, newLiftRide.getSkierId());
             preparedStatement.setInt(2, newLiftRide.getLiftId());
-            preparedStatement.setString(3, newLiftRide.getSeasonId());
-            preparedStatement.setString(4, newLiftRide.getDay());
+            preparedStatement.setInt(3, newLiftRide.getSeasonId());
+            preparedStatement.setInt(4, newLiftRide.getDayId());
             preparedStatement.setInt(5, newLiftRide.getVertical());
 
             // execute insert SQL statement

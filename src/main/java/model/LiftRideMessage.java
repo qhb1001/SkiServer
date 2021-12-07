@@ -2,13 +2,13 @@ package model;
 
 public class LiftRideMessage {
     private Integer resortID;
-    private String seasonID;
-    private String dayID;
+    private Integer seasonID;
+    private Integer dayID;
     private Integer skierID;
     private Integer time;
     private Integer liftID;
 
-    public LiftRideMessage(Integer resortID, String seasonID, String dayID, Integer skierID, Integer time, Integer liftID) {
+    public LiftRideMessage(Integer resortID, Integer seasonID, Integer dayID, Integer skierID, Integer time, Integer liftID) {
         this.resortID = resortID;
         this.seasonID = seasonID;
         this.dayID = dayID;
@@ -25,19 +25,19 @@ public class LiftRideMessage {
         this.resortID = resortID;
     }
 
-    public String getSeasonID() {
+    public Integer getSeasonID() {
         return seasonID;
     }
 
-    public void setSeasonID(String seasonID) {
+    public void setSeasonID(Integer seasonID) {
         this.seasonID = seasonID;
     }
 
-    public String getDayID() {
+    public Integer getDayID() {
         return dayID;
     }
 
-    public void setDayID(String dayID) {
+    public void setDayID(Integer dayID) {
         this.dayID = dayID;
     }
 

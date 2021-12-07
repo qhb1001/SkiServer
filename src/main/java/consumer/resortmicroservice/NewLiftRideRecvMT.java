@@ -13,7 +13,7 @@ import org.apache.commons.cli.*;
 import java.io.IOException;
 import java.util.ArrayList;
 
-public class RecvMT {
+public class NewLiftRideRecvMT {
 
 //    private final static String QUEUE_NAME = "newLiftRideQueue";
     public static final String liftRideExchange = "liftRideExchange";
@@ -73,8 +73,8 @@ public class RecvMT {
         }
 
         ConnectionFactory factory = new ConnectionFactory();
-//        factory.setHost("localhost");
-        factory.setUri("amqp://bo:passwordforrabbitmq@54.208.30.94:5672/vhost");
+        factory.setHost("localhost");
+//        factory.setUri("amqp://bo:passwordforrabbitmq@54.208.30.94:5672/vhost");
         final Connection connection = factory.newConnection();
         final Channel mainChannel = connection.createChannel();
         mainChannel.exchangeDeclare(liftRideExchange, "fanout");
@@ -104,7 +104,7 @@ public class RecvMT {
                         Gson gson = new Gson();
                         LiftRideMessage liftRideMessage = gson.fromJson(message, LiftRideMessage.class);
                         LiftRide newLiftRide = new LiftRide(liftRideMessage.getResortID(), liftRideMessage.getSkierID(), liftRideMessage.getLiftID(),
-                                liftRideMessage.getDayID(), liftRideMessage.getTime(), 100);
+                                liftRideMessage.getSeasonID(), liftRideMessage.getDayID(), liftRideMessage.getTime(), 100);
 
                         liftRideDao.createLiftRide(newLiftRide);
                     };

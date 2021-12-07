@@ -7,8 +7,8 @@ CREATE TABLE LiftRides (
     id INTEGER AUTO_INCREMENT,
     skierId INTEGER,
     liftId INTEGER,
-    seasonId VARCHAR(255),
-    day INTEGER,
+    seasonId INTEGER,
+    dayId INTEGER,
     vertical INTEGER,
     PRIMARY KEY (id)
 );
@@ -23,8 +23,14 @@ CREATE TABLE LiftRides (
     resortId INTEGER,
     skierId INTEGER,
     liftId INTEGER,
-    day INTEGER,
+    seasonId INTEGER,
+    dayId INTEGER,
     time INTEGER,
     vertical INTEGER,
-    PRIMARY KEY (id)
+    PRIMARY KEY (id),
+    INDEX resortId_index (resortId),
+    INDEX skierId_index (skierId),
+    INDEX liftId_index (liftId),
+    INDEX seasonId_index (seasonId),
+    INDEX dayId_index (dayId)
 );

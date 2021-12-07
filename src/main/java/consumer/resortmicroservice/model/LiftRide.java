@@ -5,15 +5,17 @@ public class LiftRide {
     private Integer resortId;
     private Integer skierId;
     private Integer liftId;
-    private String day;
+    private Integer seasonId;
+    private Integer dayId;
     private Integer time;
     private Integer vertical;
 
-    public LiftRide(Integer resortId, Integer skierId, Integer liftId, String day, Integer time, Integer vertical) {
+    public LiftRide(Integer resortId, Integer skierId, Integer liftId, Integer seasonId, Integer dayId, Integer time, Integer vertical) {
         this.resortId = resortId;
         this.skierId = skierId;
         this.liftId = liftId;
-        this.day = day;
+        this.seasonId = seasonId;
+        this.dayId = dayId;
         this.time = time;
         this.vertical = vertical;
     }
@@ -50,12 +52,12 @@ public class LiftRide {
         this.liftId = liftId;
     }
 
-    public String getDay() {
-        return day;
+    public Integer getDayId() {
+        return dayId;
     }
 
-    public void setDay(String day) {
-        this.day = day;
+    public void setDayId(Integer dayId) {
+        this.dayId = dayId;
     }
 
     public Integer getTime() {
@@ -72,5 +74,13 @@ public class LiftRide {
 
     public void setVertical(Integer vertical) {
         this.vertical = vertical;
+    }
+
+    public Integer getSeasonId() {
+        return seasonId;
+    }
+
+    public void setSeasonId(Integer seasonId) {
+        this.seasonId = seasonId;
     }
 }
