@@ -62,11 +62,11 @@ public class LiftRideDao {
     public Integer getUniqueSkiersCount(Integer resortId, Integer seasonId, Integer dayId) {
         Connection conn = null;
         PreparedStatement preparedStatement = null;
-        String insertQueryStatement = "SELECT COUNT(skierId) AS numSkiers FROM (SELECT skierId FROM resortmicroservice.LiftRides WHERE resortId = ? AND seasonId = ? AND dayId = ? GROUP BY skierId) AS unique_skiers";
+        String queryStatement = "SELECT COUNT(skierId) AS numSkiers FROM (SELECT skierId FROM resortmicroservice.LiftRides WHERE resortId = ? AND seasonId = ? AND dayId = ? GROUP BY skierId) AS unique_skiers";
 
         try {
             conn = dataSource.getConnection();
-            preparedStatement = conn.prepareStatement(insertQueryStatement);
+            preparedStatement = conn.prepareStatement(queryStatement);
             preparedStatement.setInt(1, resortId);
             preparedStatement.setInt(2, seasonId);
             preparedStatement.setInt(3, dayId);
@@ -138,7 +138,7 @@ public class LiftRideDao {
         try {
             conn = dataSource.getConnection();
             String queryStatement = "";
-            if (seasonId != -1) {
+            if (seasonId == -1) {
                 queryStatement = "SELECT seasonId, SUM(vertical) AS totalVertical FROM LiftRides WHERE skierId = ? AND resortId = ? GROUP BY seasonId";
                 preparedStatement = conn.prepareStatement(queryStatement);
                 preparedStatement.setInt(1, skierId);
