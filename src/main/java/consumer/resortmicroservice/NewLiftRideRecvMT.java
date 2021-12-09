@@ -47,6 +47,10 @@ public class NewLiftRideRecvMT {
         w.setRequired(true);
         options.addOption(w);
 
+        Option r = new Option("r", "rabbitmqUri", true, "rabbitmq Uri");
+        r.setRequired(true);
+        options.addOption(r);
+
         CommandLineParser parser = new DefaultParser();
         HelpFormatter formatter = new HelpFormatter();
         CommandLine cmd = null;
@@ -57,7 +61,7 @@ public class NewLiftRideRecvMT {
         String DATABASE = "ResortMicroService";
         String USERNAME = "username";
         String PASSWORD = "password";
-
+        String RABBITMQURI = "rabbitmqUri";
         try {
             cmd = parser.parse(options, argv);
             numThreads = Integer.parseInt(cmd.getOptionValue("numThreads"));
@@ -66,6 +70,7 @@ public class NewLiftRideRecvMT {
             DATABASE = cmd.getOptionValue("dbSchema");
             USERNAME = cmd.getOptionValue("dbUsername");
             PASSWORD = cmd.getOptionValue("dbPassword");
+            RABBITMQURI = cmd.getOptionValue("rabbitmqUri");
         } catch (ParseException e) {
             System.out.println(e.getMessage());
             formatter.printHelp("utility-name", options);
@@ -73,8 +78,9 @@ public class NewLiftRideRecvMT {
         }
 
         ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost("localhost");
+//        factory.setHost("localhost");
 //        factory.setUri("amqp://bo:passwordforrabbitmq@54.208.30.94:5672/vhost");
+        factory.setUri(RABBITMQURI);
         final Connection connection = factory.newConnection();
         final Channel mainChannel = connection.createChannel();
         mainChannel.exchangeDeclare(liftRideExchange, "fanout");

@@ -42,6 +42,10 @@ public class RPCRecvMT {
         w.setRequired(true);
         options.addOption(w);
 
+        Option r = new Option("r", "rabbitmqUri", true, "rabbitmq Uri");
+        r.setRequired(true);
+        options.addOption(r);
+
         CommandLineParser parser = new DefaultParser();
         HelpFormatter formatter = new HelpFormatter();
         CommandLine cmd = null;
@@ -52,6 +56,7 @@ public class RPCRecvMT {
         String DATABASE = "ResortMicroService";
         String USERNAME = "username";
         String PASSWORD = "password";
+        String RABBITMQURI = "rabbitmqUri";
 
         try {
             cmd = parser.parse(options, argv);
@@ -61,6 +66,7 @@ public class RPCRecvMT {
             DATABASE = cmd.getOptionValue("dbSchema");
             USERNAME = cmd.getOptionValue("dbUsername");
             PASSWORD = cmd.getOptionValue("dbPassword");
+            RABBITMQURI = cmd.getOptionValue("rabbitmqUri");
         } catch (ParseException e) {
             System.out.println(e.getMessage());
             formatter.printHelp("utility-name", options);
@@ -68,7 +74,8 @@ public class RPCRecvMT {
         }
 
         ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost("localhost");
+//        factory.setHost("localhost");
+        factory.setUri(RABBITMQURI);
 //        factory.setUri("amqp://bo:passwordforrabbitmq@54.208.30.94:5672/vhost");
         final Connection connection = factory.newConnection();
 
