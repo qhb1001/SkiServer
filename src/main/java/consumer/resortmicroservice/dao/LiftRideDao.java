@@ -13,7 +13,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 
 public class LiftRideDao {
-    private static BasicDataSource dataSource;
+    private static BasicDataSource dataSource = null;
 
     public LiftRideDao(
             String HOST_NAME,
@@ -22,7 +22,9 @@ public class LiftRideDao {
             String USERNAME,
             String PASSWORD
     ) {
-        dataSource = new DBCPDataSource().getDataSource(HOST_NAME, PORT, DATABASE, USERNAME, PASSWORD);
+        if (dataSource == null) {
+            dataSource = new DBCPDataSource().getDataSource(HOST_NAME, PORT, DATABASE, USERNAME, PASSWORD);
+        }
     }
 
     public void createLiftRide(LiftRide newLiftRide) {
