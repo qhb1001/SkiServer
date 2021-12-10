@@ -162,7 +162,7 @@ public class ResortServlet extends HttpServlet {
     public void destroy() {
         super.destroy();
         try {
-            connection.close();
+            if (connection != null) {connection.close();}
         } catch (IOException e) {
             e.printStackTrace();
         }
