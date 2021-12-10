@@ -3,39 +3,20 @@ import com.rabbitmq.client.*;
 import consumer.resortmicroservice.model.SkiDayVerticalMessage;
 import consumer.resortmicroservice.model.TotalVerticalMessage;
 import model.*;
-import org.apache.commons.pool2.ObjectPool;
-import org.apache.commons.pool2.impl.GenericObjectPool;
-import util.RabbitMQChannelPool;
+import util.rabbitmq.BlockingChannelPool;
+import util.rabbitmq.ChannelPool;
+import util.rabbitmq.RPCClient;
 
 import javax.servlet.*;
 import javax.servlet.http.*;
 import javax.servlet.annotation.*;
 import java.io.IOException;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 @WebServlet(name = "SkierServlet", value = "/SkierServlet")
 public class SkierServlet extends HttpServlet {
 
-    private ConnectionFactory factory;
     public static final String liftRideExchange = "liftRideExchange";
-    private Connection connection;
-    private ObjectPool<Channel> channelPool;
-
-    @Override
-    public void init() {
-        try {
-            factory = new ConnectionFactory();
-//            factory.setHost("localhost");
-//            factory.setUri("amqp://bo:passwordforrabbitmq@54.208.30.94:5672/vhost");
-            factory.setUri(System.getProperty("RABBITMQ_URI"));
-            connection = factory.newConnection();
-
-            channelPool = new GenericObjectPool<Channel>(new RabbitMQChannelPool(factory, connection));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
@@ -62,7 +43,12 @@ public class SkierServlet extends HttpServlet {
             // do any sophisticated processing with urlParts which contains all the url params
             // TODO: process url params in `urlParts`
             if (urlParts.length == 8) {
-                try (RPCClient getRequestRpc = new RPCClient(connection, channelPool.borrowObject())) {
+                try {
+                    ChannelPool channelPool = new BlockingChannelPool();
+                    channelPool.init();
+                    Channel channel = channelPool.take();
+                    Connection connection = channelPool.getConnection();
+                    RPCClient getRequestRpc = new RPCClient(connection, channel);
 
                     Gson gson = new Gson();
                     // urlParts = [ , {resortID}, seasons, {seasonID}, days, {dayID}, skiers, {skierID}]
@@ -78,8 +64,9 @@ public class SkierServlet extends HttpServlet {
                     res.setStatus(HttpServletResponse.SC_OK);
 
                     res.getWriter().write(result);
+                    channelPool.add(channel);
                     return;
-                } catch (IOException | TimeoutException | InterruptedException e) {
+                } catch (IOException | InterruptedException e) {
                     e.printStackTrace();
                     res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                     return;
@@ -89,7 +76,12 @@ public class SkierServlet extends HttpServlet {
                     return;
                 }
             } else if (urlParts.length == 3) {
-                try (RPCClient getRequestRpc = new RPCClient(connection, channelPool.borrowObject())) {
+                try {
+                    ChannelPool channelPool = new BlockingChannelPool();
+                    channelPool.init();
+                    Channel channel = channelPool.take();
+                    Connection connection = channelPool.getConnection();
+                    RPCClient getRequestRpc = new RPCClient(connection, channel);
 
                     Gson gson = new Gson();
                     // urlParts = urlParts = [, 1, vertical]
@@ -106,8 +98,9 @@ public class SkierServlet extends HttpServlet {
                     res.setStatus(HttpServletResponse.SC_OK);
 
                     res.getWriter().write(result);
+                    channelPool.add(channel);
                     return;
-                } catch (IOException | TimeoutException | InterruptedException e) {
+                } catch (IOException | InterruptedException e) {
                     e.printStackTrace();
                     res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                     return;
@@ -126,6 +119,15 @@ public class SkierServlet extends HttpServlet {
         res.setCharacterEncoding("UTF-8");
         String urlPath = req.getPathInfo();
 
+        ChannelPool channelPool = new BlockingChannelPool();
+        channelPool.init();
+        Channel channel = null;
+        try {
+            channel = channelPool.take();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         // check we have a URL!
         if (urlPath == null || "".equals(urlPath)) {
             res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
@@ -143,9 +145,7 @@ public class SkierServlet extends HttpServlet {
         } else {
             // do any sophisticated processing with urlParts which contains all the url params
             if (urlParts.length == 8) {
-                Channel channel = null;
                 try {
-                    channel = channelPool.borrowObject();
                     channel.exchangeDeclare(liftRideExchange, "fanout");
                     String message = formatLiftRideJson(urlPath, req.getReader().lines().collect(Collectors.joining()));
 
@@ -157,10 +157,7 @@ public class SkierServlet extends HttpServlet {
                     res.getWriter().write("{\n" +
                             "  \"message\": \"pushed a message to the rabbitmq\"\n" +
                             "}");
-                } catch (TimeoutException e) {
-                    e.printStackTrace();
-                    res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                    res.sendError(HttpServletResponse.SC_NOT_FOUND, "Cannot create a channel to rabbitmq");
+                    channelPool.add(channel);
                 } catch (IOException e) {
                     e.printStackTrace();
                     res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
@@ -169,16 +166,6 @@ public class SkierServlet extends HttpServlet {
                     e.printStackTrace();
                     res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                     res.sendError(HttpServletResponse.SC_NOT_FOUND, "Unable to borrow a channel from pool");
-                } finally {
-                    if (channel != null) {
-                        try {
-                            channelPool.returnObject(channel);
-//                            System.out.println("channel returned to the pool.");
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            throw new ServletException("Unable to return a borrowed channel to the pool");
-                        }
-                    }
                 }
 
             } else {
@@ -254,13 +241,4 @@ public class SkierServlet extends HttpServlet {
         return gson.toJson(liftRideMessage);
     }
 
-    @Override
-    public void destroy() {
-        super.destroy();
-        try {
-            if (connection != null) {connection.close();}
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 }

@@ -1,3 +1,5 @@
+package util.rabbitmq;
+
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
