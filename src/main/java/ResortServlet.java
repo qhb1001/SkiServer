@@ -1,42 +1,18 @@
 import com.google.gson.Gson;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
 import consumer.resortmicroservice.model.UniqueSkierMessage;
-import org.apache.commons.pool2.ObjectPool;
-import org.apache.commons.pool2.impl.GenericObjectPool;
-import util.RabbitMQChannelPool;
+import util.rabbitmq.BlockingChannelPool;
+import util.rabbitmq.ChannelPool;
+import util.rabbitmq.RPCClient;
 
 import javax.servlet.*;
 import javax.servlet.http.*;
 import javax.servlet.annotation.*;
 import java.io.IOException;
-import java.util.concurrent.TimeoutException;
 
 @WebServlet(name = "ResortServlet", value = "/ResortServlet")
 public class ResortServlet extends HttpServlet {
-
-    private ConnectionFactory factory;
-    private Connection connection;
-    private ObjectPool<Channel> channelPool;
-
-    @Override
-    public void init() {
-        try {
-            factory = new ConnectionFactory();
-//            factory.setHost("localhost");
-
-//            factory.setUri("amqp://bo:passwordforrabbitmq@18.205.29.19:5672/vhost");
-            factory.setUri(System.getProperty("RABBITMQ_URI"));
-            connection = factory.newConnection();
-
-            channelPool = new GenericObjectPool<Channel>(new RabbitMQChannelPool(factory, connection));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
@@ -60,8 +36,12 @@ public class ResortServlet extends HttpServlet {
             res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             return;
         } else {
-            try (RPCClient getRequestRpc = new RPCClient(connection, channelPool.borrowObject())) {
-
+            try {
+                ChannelPool channelPool = new BlockingChannelPool();
+                channelPool.init();
+                Channel channel = channelPool.take();
+                Connection connection = channelPool.getConnection();
+                RPCClient getRequestRpc = new RPCClient(connection, channel);
 
                 Gson gson = new Gson();
                 UniqueSkierMessage uniqueSkierMessage = new UniqueSkierMessage(
@@ -78,8 +58,9 @@ public class ResortServlet extends HttpServlet {
 //                    "numSkiers": 123
 //                }
                 res.getWriter().write(result);
+                channelPool.add(channel);
                 return;
-            } catch (IOException | TimeoutException | InterruptedException e) {
+            } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
                 res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 return;
@@ -88,9 +69,6 @@ public class ResortServlet extends HttpServlet {
                 res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 return;
             }
-
-
-
         }
     }
 
@@ -158,13 +136,4 @@ public class ResortServlet extends HttpServlet {
         return false;
     }
 
-    @Override
-    public void destroy() {
-        super.destroy();
-        try {
-            if (connection != null) {connection.close();}
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 }

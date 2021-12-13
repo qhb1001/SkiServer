@@ -64,7 +64,7 @@ public class LiftRideDao {
     public Integer getUniqueSkiersCount(Integer resortId, Integer seasonId, Integer dayId) {
         Connection conn = null;
         PreparedStatement preparedStatement = null;
-        String queryStatement = "SELECT COUNT(skierId) AS numSkiers FROM (SELECT skierId FROM resortmicroservice.LiftRides WHERE resortId = ? AND seasonId = ? AND dayId = ? GROUP BY skierId) AS unique_skiers";
+        String queryStatement = "SELECT COUNT(skierId) AS numSkiers FROM (SELECT skierId FROM LiftRides WHERE resortId = ? AND seasonId = ? AND dayId = ? GROUP BY skierId) AS unique_skiers";
 
         try {
             conn = dataSource.getConnection();
